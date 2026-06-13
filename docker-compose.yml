@@ -1,0 +1,81 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────
+#  La Deguste Buffet — Docker Compose Stack
+#  Serviços:
+#    1. site       → servidor do site estático (Nginx)
+#    2. proxy      → Reverse Proxy principal (Nginx)
+#    3. portainer  → Painel de gerenciamento Docker (GUI)
+# ─────────────────────────────────────────────
+
+networks:
+  ladeguste-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24   # Rede privada isolada para os serviços
+
+volumes:
+  portainer_data:
+
+services:
+
+  # ── 1. SITE (servidor do conteúdo estático) ──
+  site:
+    image: nginx:1.25-alpine
+    container_name: ladeguste-site
+    restart: unless-stopped
+    volumes:
+      - ./site:/usr/share/nginx/html:ro          # Arquivos do site (somente leitura)
+      - ./nginx/site.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      ladeguste-net:
+        ipv4_address: 172.20.0.10
+    expose:
+      - "80"                                      # Só visível internamente (via proxy)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "project=ladeguste"
+      - "service=site"
+
+  # ── 2. PROXY (reverse proxy público) ──
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: ladeguste-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"       # HTTP público
+      - "443:443"     # HTTPS (habilite com certificado SSL)
+    volumes:
+      - ./nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro            # Coloque seus certs aqui
+    networks:
+      ladeguste-net:
+        ipv4_address: 172.20.0.2
+    depends_on:
+      site:
+        condition: service_healthy
+    labels:
+      - "project=ladeguste"
+      - "service=proxy"
+
+  # ── 3. PORTAINER (gerenciamento visual dos containers) ──
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: ladeguste-portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # Painel web acessível em http://localhost:9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Acesso ao daemon Docker
+      - portainer_data:/data
+    networks:
+      ladeguste-net:
+        ipv4_address: 172.20.0.3
+    labels:
+      - "project=ladeguste"
+      - "service=monitoring"
