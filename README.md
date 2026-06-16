@@ -154,3 +154,7 @@ ladeguste/
 ---
 
 Desenvolvido por **Carlos Eduardo Kesley** — Portfólio de Infraestrutura & Redes
+
+
+
+#LINK DEPLOY RENDER: https://la-deguste-buffet.onrender.com
