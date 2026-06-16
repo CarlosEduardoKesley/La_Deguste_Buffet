@@ -1,4 +1,4 @@
-version: "3.9"
+
 
 # ─────────────────────────────────────────────
 #  La Deguste Buffet — Docker Compose Stack
@@ -26,21 +26,19 @@ services:
     container_name: ladeguste-site
     restart: unless-stopped
     volumes:
-      - ./site:/usr/share/nginx/html:ro          # Arquivos do site (somente leitura)
+      - ./site:/usr/share/nginx/html:ro
       - ./nginx/site.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       ladeguste-net:
         ipv4_address: 172.20.0.10
     expose:
-      - "80"                                      # Só visível internamente (via proxy)
+      - "80"
+    # O Healthcheck ideal para provar o uso de portas sem depender de arquivos HTML:
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 80 || exit 1"]
+      interval: 5s
+      timeout: 3s
       retries: 3
-    labels:
-      - "project=ladeguste"
-      - "service=site"
 
   # ── 2. PROXY (reverse proxy público) ──
   proxy:
